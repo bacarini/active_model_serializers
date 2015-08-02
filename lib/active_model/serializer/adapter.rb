@@ -21,9 +21,12 @@ module ActiveModel
       end
 
       def as_json(options = nil)
-        hash = serializable_hash(options)
-        include_meta(hash) unless self.class == FlattenJson
-        hash
+        serializable_hash(options).tap do |hash|
+          return hash if self.class == FlattenJson
+
+          include_meta(hash)
+          include_pagination_links(hash) if options && options[:pagination]
+        end
       end
 
       def self.create(resource, options = {})
@@ -93,6 +96,21 @@ module ActiveModel
       def include_meta(json)
         json[meta_key] = meta if meta
         json
+      end
+
+      def include_pagination_links(json)
+        return unless page_links
+
+        links?(json) ? json.merge!(page_links) : json['links'] = page_links
+        json
+      end
+
+      def page_links
+        @links ||= serializer.page_links
+      end
+
+      def links?(json)
+        !json['links'].nil?
       end
     end
   end
